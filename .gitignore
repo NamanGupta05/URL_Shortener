@@ -1,0 +1,8 @@
+build/
+urls.db
+*.exe
+*.obj
+*.dll
+*.a
+*.o
+*.log
