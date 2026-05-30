@@ -1,5 +1,7 @@
 # URL Shortener
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20App-blue?style=for-the-badge)](https://url-shortener-6a0z.onrender.com/)
+
 A simple URL shortener built with **C++**. Paste a long link and get a short one that redirects to the original page.
 
 **Live app:** [https://url-shortener-6a0z.onrender.com/](https://url-shortener-6a0z.onrender.com/)
