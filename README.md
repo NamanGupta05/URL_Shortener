@@ -25,7 +25,7 @@ No installation needed. Open the live app and follow these steps:
 | Original URL | `https://example.com/very/long/path/to/page` |
 | Short URL | `https://url-shortener-6a0z.onrender.com/abc123` |
 
-When someone opens the short URL, they are sent to the original page automatically.
+When someone opens the short URL, they are sent to the original pages automatically.
 
 > **Note:** On the free Render plan, the app may sleep when unused. The first visit after idle time can take about 30 seconds to load.
 
