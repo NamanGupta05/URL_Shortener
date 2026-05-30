@@ -1,126 +1,135 @@
-# URL Shortener (C++)
+# URL Shortener
 
-A tiny **URL shortener** written in C++ with CLI, interactive mode, and a modern web UI.
+A simple URL shortener built with **C++**. Paste a long link and get a short one that redirects to the original page.
 
-It supports:
-- generating a short code for a URL
-- expanding a short code back to the original URL
-- persisting mappings to `urls.db` in the current folder
-- interactive prompt mode for quick typing
-- web UI in browser (local or deployed)
+**Live app:** [https://url-shortener-6a0z.onrender.com/](https://url-shortener-6a0z.onrender.com/)
 
-## Deploy (Render + Docker)
+---
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/NamanGupta05/URL_Shortener)
+## How to use (online)
 
-1. Click **Deploy to Render** (or open [Render Dashboard](https://dashboard.render.com/) → **New +** → **Blueprint**).
-2. Connect GitHub and select repo: [NamanGupta05/URL_Shortener](https://github.com/NamanGupta05/URL_Shortener).
-3. Render reads `render.yaml` and builds from `Dockerfile`.
-4. After deploy, open your live URL (example: `https://url-shortener-xxxx.onrender.com`).
+No installation needed. Open the live app and follow these steps:
 
-Notes:
-- Render sets `PORT` and `RENDER_EXTERNAL_URL` automatically for short links.
-- Free tier may sleep after inactivity; first request can take ~30 seconds.
+1. Go to **[https://url-shortener-6a0z.onrender.com/](https://url-shortener-6a0z.onrender.com/)**
+2. Paste your long URL in the input box (must start with `http://` or `https://`)
+3. Click **Shorten URL**
+4. Copy the short link shown on the page
+5. Open the short link in a new tab — it will redirect to your original URL
 
-## Build (Windows)
+### Example
 
-### Option A: CMake (recommended)
+| Step | Value |
+|------|-------|
+| Original URL | `https://example.com/very/long/path/to/page` |
+| Short URL | `https://url-shortener-6a0z.onrender.com/abc123` |
 
-```bash
+When someone opens the short URL, they are sent to the original page automatically.
+
+> **Note:** On the free Render plan, the app may sleep when unused. The first visit after idle time can take about 30 seconds to load.
+
+---
+
+## Features
+
+- Shorten long URLs instantly from the browser
+- Click short links to redirect to the original URL
+- Modern dark-themed web UI
+- CLI and interactive terminal mode for local use
+- Saves URL mappings locally in `urls.db`
+
+---
+
+## Run locally (Windows)
+
+### 1. Build
+
+```powershell
 cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Run:
+### 2. Start web UI
 
-```bash
-.\build\url_shortener.exe help
-```
-
-### Option B: g++ / clang++
-
-```bash
-g++ -std=c++14 -O2 -o url_shortener main.cpp
-```
-
-## Usage
-
-Interactive mode (best experience):
-
-```bash
-.\build\url_shortener.exe
-```
-
-Then type any URL directly:
-
-```text
-> https://example.com/very/long/link
-http://sho.rt/abc123
-```
-
-Useful commands in interactive mode:
-- `expand <code|short-url>`
-- `list`
-- `help`
-- `exit`
-
-Web interface:
-
-```bash
+```powershell
 .\build\url_shortener.exe web 8080
 ```
 
-Then open:
-- `http://localhost:8080`
+Open [http://localhost:8080](http://localhost:8080)
 
-You can paste a long URL in the input box and click **Shorten URL**.
-
-Shorten a URL:
-
-```bash
-.\url_shortener.exe shorten https://example.com/some/long/path
-```
-
-Expand a code (or the full short URL) back to the original:
-
-```bash
-.\url_shortener.exe expand abc123
-```
-
-```bash
-.\url_shortener.exe expand http://sho.rt/abc123
-```
-
-List all mappings:
-
-```bash
-.\url_shortener.exe list
-```
-
-## Configure the base short domain
-
-Set `SHORT_BASE` (must include scheme):
-
-PowerShell:
+### 3. Interactive mode (terminal)
 
 ```powershell
-$env:SHORT_BASE = "https://my.short/"
-.\url_shortener.exe shorten https://example.com
+.\build\url_shortener.exe
 ```
 
-CMD:
+Type a URL directly:
 
-```bat
-set SHORT_BASE=https://my.short/
-url_shortener.exe shorten https://example.com
+```text
+> https://example.com/very/long/link
+http://localhost:8080/abc123
 ```
 
-## Docker (local)
+**Commands in interactive mode:**
+
+| Command | Description |
+|---------|-------------|
+| `<url>` | Shorten a URL |
+| `expand <code>` | Get original URL from short code |
+| `list` | Show all saved mappings |
+| `help` | Show command help |
+| `exit` | Quit |
+
+---
+
+## CLI commands
+
+```powershell
+# Shorten a URL
+.\build\url_shortener.exe shorten https://example.com/page
+
+# Expand a short code
+.\build\url_shortener.exe expand abc123
+
+# List all mappings
+.\build\url_shortener.exe list
+```
+
+---
+
+## Deploy your own copy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/NamanGupta05/URL_Shortener)
+
+1. Click **Deploy to Render**
+2. Connect your GitHub account
+3. Select this repository
+4. Wait for the build to finish
+5. Open your new live URL
+
+Or run with Docker locally:
 
 ```bash
 docker build -t url-shortener .
 docker run -p 8080:8080 -e PORT=8080 url-shortener
 ```
 
-Open `http://localhost:8080`.
+---
 
+## Project structure
+
+| File | Purpose |
+|------|---------|
+| `main.cpp` | Core logic, web server, and CLI |
+| `CMakeLists.txt` | Build configuration |
+| `Dockerfile` | Container setup for deployment |
+| `render.yaml` | Render deployment config |
+| `urls.db` | Local storage for URL mappings (created at runtime) |
+
+---
+
+## Tech stack
+
+- C++14
+- CMake
+- Custom HTTP server (WinSock on Windows, BSD sockets on Linux)
+- Docker + Render for deployment
