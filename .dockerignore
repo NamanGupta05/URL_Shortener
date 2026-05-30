@@ -1,0 +1,6 @@
+build/
+.git/
+urls.db
+*.exe
+*.obj
+*.log

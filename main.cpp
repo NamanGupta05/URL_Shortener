@@ -15,6 +15,17 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+typedef SOCKET sock_t;
+#define SOCK_INVALID INVALID_SOCKET
+#define sock_close closesocket
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+typedef int sock_t;
+#define SOCK_INVALID (-1)
+#define sock_close close
 #endif
 
 namespace {
@@ -332,7 +343,7 @@ std::string get_form_value(const std::string& body, const std::string& key) {
   return url_decode(body.substr(start, end - start));
 }
 
-void send_http_response(SOCKET client, const std::string& status,
+void send_http_response(sock_t client, const std::string& status,
                         const std::string& content_type,
                         const std::string& body,
                         const std::string& extra_headers) {
@@ -349,53 +360,56 @@ void send_http_response(SOCKET client, const std::string& status,
 
 void run_web_server(const std::string& db_path, Shortener& shortener, Store& store,
                     int port) {
-#ifndef _WIN32
-  (void)db_path;
-  (void)shortener;
-  (void)store;
-  (void)port;
-  std::cerr << "Web mode is currently implemented for Windows only.\n";
-  return;
-#else
+#ifdef _WIN32
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
     std::cerr << "Failed to initialize WinSock.\n";
     return;
   }
+#endif
 
-  SOCKET server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (server == INVALID_SOCKET) {
+  sock_t server = socket(AF_INET, SOCK_STREAM, 0);
+  if (server == SOCK_INVALID) {
     std::cerr << "Failed to create socket.\n";
+#ifdef _WIN32
     WSACleanup();
+#endif
     return;
   }
+
+  int reuse = 1;
+  setsockopt(server, SOL_SOCKET, SO_REUSEADDR,
+             reinterpret_cast<const char*>(&reuse), sizeof(reuse));
 
   sockaddr_in addr;
   std::memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  addr.sin_port = htons(static_cast<u_short>(port));
+  addr.sin_port = htons(static_cast<uint16_t>(port));
 
-  if (bind(server, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) ==
-      SOCKET_ERROR) {
+  if (bind(server, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
     std::cerr << "Port " << port << " is busy or unavailable.\n";
-    closesocket(server);
+    sock_close(server);
+#ifdef _WIN32
     WSACleanup();
+#endif
     return;
   }
-  if (listen(server, SOMAXCONN) == SOCKET_ERROR) {
+  if (listen(server, 128) != 0) {
     std::cerr << "listen() failed.\n";
-    closesocket(server);
+    sock_close(server);
+#ifdef _WIN32
     WSACleanup();
+#endif
     return;
   }
 
-  std::cout << "Web UI running at http://localhost:" << port << "\n";
+  std::cout << "Web UI running on port " << port << "\n";
   std::cout << "Press Ctrl+C to stop.\n";
 
   for (;;) {
-    SOCKET client = accept(server, NULL, NULL);
-    if (client == INVALID_SOCKET) continue;
+    sock_t client = accept(server, NULL, NULL);
+    if (client == SOCK_INVALID) continue;
 
     std::string req;
     char buffer[4096];
@@ -439,19 +453,19 @@ void run_web_server(const std::string& db_path, Shortener& shortener, Store& sto
       }
     }
     if (req.empty()) {
-      closesocket(client);
+      sock_close(client);
       continue;
     }
 
     const std::size_t line_end = req.find("\r\n");
     if (line_end == std::string::npos) {
-      closesocket(client);
+      sock_close(client);
       continue;
     }
     const std::string request_line = req.substr(0, line_end);
     std::vector<std::string> parts = split_ws(request_line);
     if (parts.size() < 2) {
-      closesocket(client);
+      sock_close(client);
       continue;
     }
     const std::string method = parts[0];
@@ -500,9 +514,8 @@ void run_web_server(const std::string& db_path, Shortener& shortener, Store& sto
                          "");
     }
 
-    closesocket(client);
+    sock_close(client);
   }
-#endif
 }
 
 void run_interactive(const std::string& db_path, Shortener& shortener,
@@ -618,21 +631,32 @@ int main(int argc, char** argv) {
   }
   if (cmd == "web") {
     int port = 8080;
-    if (argc >= 3) {
+    const char* env_port = std::getenv("PORT");
+    if (env_port && env_port[0]) {
+      port = std::atoi(env_port);
+    } else if (argc >= 3) {
       port = std::atoi(argv[2]);
-      if (port <= 0 || port > 65535) {
-        std::cerr << "Invalid port.\n";
-        return 2;
-      }
     }
-    // For web mode, make generated links resolvable on your machine.
-    if (argc < 3) {
-      shortener.base_url = "http://localhost:8080/";
+    if (port <= 0 || port > 65535) {
+      std::cerr << "Invalid port.\n";
+      return 2;
+    }
+
+    const char* public_url = std::getenv("SHORT_BASE");
+    if (!public_url || !public_url[0]) public_url = std::getenv("RENDER_EXTERNAL_URL");
+    if (!public_url || !public_url[0]) public_url = std::getenv("PUBLIC_URL");
+
+    if (public_url && public_url[0]) {
+      shortener.base_url = public_url;
+      if (!shortener.base_url.empty() && shortener.base_url.back() != '/') {
+        shortener.base_url.push_back('/');
+      }
     } else {
       std::ostringstream base;
       base << "http://localhost:" << port << "/";
       shortener.base_url = base.str();
     }
+
     run_web_server(db_path, shortener, store, port);
     return 0;
   }
